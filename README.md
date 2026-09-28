@@ -57,7 +57,8 @@ omarchy-shell shell toggle jglemusb.sticky-notes                       # flip be
 |---|---|
 | `manifest.json` | Plugin manifest (`panel` kind, `keepLoaded`) |
 | `StickyNotes.qml` | Note list, persistence, and shell `open`/`close` handling |
-| `Note.qml` | One note surface |
+| `Board.qml` | One transparent full-screen surface per monitor that draws its notes |
+| `Note.qml` | One note |
 | `HeaderButton.qml` | Header button |
 | `Palette.js` | Note colors and size limits |
 

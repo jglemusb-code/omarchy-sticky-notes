@@ -5,8 +5,8 @@ import Quickshell.Hyprland
 import "Palette.js" as Palette
 
 // Sticky notes host. Owns the note list, persists it to disk, and creates one
-// Note surface per entry. Notes sit on the desktop layer (behind windows)
-// until they are raised to the front.
+// Board surface per monitor to draw the notes on. Notes sit on the desktop
+// layer (behind windows) until they are raised to the front.
 //
 // Shell API (keepLoaded panel):
 //   summon '{"action":"new"}'   create a note (and raise notes to the front)
@@ -31,10 +31,12 @@ Item {
   readonly property string dataPath: dataDir + "/omarchy-sticky-notes.json"
 
   property bool loaded: false
-  // Id of the note that should grab keyboard focus once its surface maps.
+  // Id of the note that should grab keyboard focus once it appears, and the
+  // monitor whose Board has to take the keyboard for it.
   property string focusNoteId: ""
+  property string focusScreenName: ""
 
-  ListModel { id: notesModel }
+  property ListModel notes: ListModel { id: notesModel }
 
   function open(payloadJson) {
     var action = ""
@@ -57,6 +59,12 @@ Item {
     for (var i = 0; i < screens.length; i++)
       if (screens[i].name === name) return screens[i]
     return screens.length > 0 ? screens[0] : null
+  }
+
+  // Notes saved on a monitor that is no longer connected show up on the first one.
+  function resolvedScreenName(name) {
+    var screen = screenFor(name)
+    return screen ? screen.name : ""
   }
 
   function newNote(nearNoteId) {
@@ -83,6 +91,7 @@ Item {
 
     var id = Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36)
     notesModel.append({ noteId: id, body: "", tint: tint, px: px, py: py, pw: w, ph: h, screenName: screenName })
+    focusScreenName = resolvedScreenName(screenName)
     focusNoteId = id
     raised = true
     scheduleSave()
@@ -166,12 +175,8 @@ Item {
   // Flush pending edits when the shell reloads the plugin or exits.
   Component.onDestruction: if (saveTimer.running) saveNow()
 
-  Instantiator {
-    model: notesModel
-    delegate: Note {
-      host: root
-      raised: root.raised
-      targetScreen: root.screenFor(screenName)
-    }
+  Variants {
+    model: Quickshell.screens
+    delegate: Board { host: root }
   }
 }

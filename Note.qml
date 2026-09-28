@@ -1,16 +1,14 @@
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import qs.Commons
 import "Palette.js" as Palette
 
-// One sticky note: its own layer-shell surface, positioned with margins from
-// the top-left corner of its screen. Drag the header to move it, drag the
-// bottom-right corner to resize it.
-PanelWindow {
+// One sticky note, drawn inside its screen's Board surface. Drag the header
+// to move it, drag the bottom-right corner to resize it.
+Item {
   id: note
 
-  // Model roles, delivered by the Instantiator in StickyNotes.qml.
+  // Model roles, delivered by the Repeater in Board.qml.
   required property int index
   required property string noteId
   required property string body
@@ -22,8 +20,10 @@ PanelWindow {
   required property string screenName
 
   property var host: null
-  property bool raised: false
-  property var targetScreen: null
+  // Whether this note belongs on the Board it was created in (one per monitor).
+  property bool onScreen: true
+  // The Board surface this note is drawn on; used to keep it on screen.
+  property Item area: null
 
   // Live geometry while dragging/resizing; committed to the model on release.
   property real liveX: px
@@ -38,22 +38,19 @@ PanelWindow {
   readonly property var colors: tint === "theme"
     ? { body: Color.background, header: Util.alpha(Color.accent, 0.35), text: Color.foreground }
     : Palette.colors[tint] || Palette.colors[Palette.defaultTint]
-  readonly property bool wantsFocus: host && host.focusNoteId === noteId
+  readonly property bool wantsFocus: onScreen && host && host.focusNoteId === noteId
 
-  screen: targetScreen
-  color: "transparent"
-  exclusionMode: ExclusionMode.Ignore
-  anchors { top: true; left: true }
-  margins { top: Math.round(liveY); left: Math.round(liveX) }
-  implicitWidth: Math.round(liveW)
-  implicitHeight: Math.round(liveH)
+  // The part of the Board surface that takes clicks; the rest passes through.
+  readonly property Region inputRegion: Region {
+    x: Math.round(note.x); y: Math.round(note.y)
+    width: Math.round(note.width); height: Math.round(note.height)
+  }
 
-  WlrLayershell.namespace: "omarchy-sticky-notes"
-  // Desktop layer by default so notes stay behind your windows; Top when raised.
-  WlrLayershell.layer: raised ? WlrLayer.Top : WlrLayer.Bottom
-  // A freshly created note grabs the keyboard so you can type right away; it
-  // hands the grab back (OnDemand) as soon as it has focus.
-  WlrLayershell.keyboardFocus: wantsFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+  visible: onScreen
+  x: Math.round(liveX)
+  y: Math.round(liveY)
+  width: Math.round(liveW)
+  height: Math.round(liveH)
 
   onPxChanged: liveX = px
   onPyChanged: liveY = py
@@ -86,12 +83,12 @@ PanelWindow {
   }
 
   function clampX(v) {
-    var sw = targetScreen ? targetScreen.width : 10000
+    var sw = area ? area.width : 10000
     return Math.max(0, Math.min(v, sw - liveW))
   }
 
   function clampY(v) {
-    var sh = targetScreen ? targetScreen.height : 10000
+    var sh = area ? area.height : 10000
     return Math.max(0, Math.min(v, sh - headerHeight))
   }
 
@@ -142,8 +139,8 @@ PanelWindow {
         onPressed: function(mouse) { pressX = mouse.x; pressY = mouse.y }
         onPositionChanged: function(mouse) {
           if (!pressed) return
-          // The surface moves under the pointer, so the offset from the
-          // original grab point is the distance still left to travel.
+          // The header moves with the note, so the offset from the grab
+          // point is how far the pointer has travelled since the last event.
           note.liveX = note.clampX(note.liveX + mouse.x - pressX)
           note.liveY = note.clampY(note.liveY + mouse.y - pressY)
         }
