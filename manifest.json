@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "jglemusb.sticky-notes",
+  "name": "Sticky Notes",
+  "version": "1.0.0",
+  "author": "jglemusb",
+  "license": "MIT",
+  "description": "Windows-style sticky notes that live on your desktop, with drag, resize, colors, and autosave.",
+  "kinds": ["panel"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "panel": "StickyNotes.qml"
+  }
+}
